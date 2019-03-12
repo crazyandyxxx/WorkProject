@@ -10,6 +10,9 @@ import redis
 import rq
 from app import db, login
 from app.search import add_to_index, remove_from_index, query_index
+import uuid
+import threading
+
 
 
 class SearchableMixin(object):
@@ -146,9 +149,12 @@ class User(UserMixin, db.Model):
         return n
 
     def launch_task(self, name, description, *args, **kwargs):
-        rq_job = current_app.task_queue.enqueue('app.tasks.' + name, self.id,
-                                                *args, **kwargs)
-        task = Task(id=rq_job.get_id(), name=name, description=description,
+        # rq_job = current_app.task_queue.enqueue('app.tasks.' + name, self.id,
+        #                                         *args, **kwargs)
+        task_id = str(uuid.uuid4())
+        # thread = threading.Thread(target=tasks.export_posts, args=(self.id,task_id))
+        tasks.export_posts(self.id,task_id)
+        task = Task(id=task_id, name=name, description=description,
                     user=self)
         db.session.add(task)
         return task
@@ -217,3 +223,5 @@ class Task(db.Model):
     def get_progress(self):
         job = self.get_rq_job()
         return job.meta.get('progress', 0) if job is not None else 100
+
+from app import tasks
